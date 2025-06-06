@@ -1,50 +1,53 @@
 import tkinter as tk
 import configparser
 import os
+import random
+
+from utils import get_available_themes, set_theme
+from panels import panel_main, panel_settings
 
 def parse_rgb(rgb_string):
-    """Convert 'R,G,B' string to a tkinter-friendly color."""
     try:
         r, g, b = [int(c.strip()) for c in rgb_string.split(",")]
         return f"#{r:02x}{g:02x}{b:02x}"
     except:
         return "#000000"
 
+def get_current_theme_name():
+    path = os.path.join("data", "settings.ini")
+    config = configparser.ConfigParser()
+    config.read(path)
+    return config.get("App", "theme", fallback="dark")
+
 def load_theme(name="dark"):
-    """Load a theme section from themes.ini"""
     path = os.path.join("data", "themes.ini")
     config = configparser.ConfigParser()
     config.read(path)
-    
+
     if name not in config:
-        print(f"Theme '{name}' not found.")
-        return {}
+        print(f"Theme '{name}' not found. Falling back to 'dark'")
+        name = "dark"
 
     return {key: parse_rgb(val) for key, val in config[name].items()}
 
-def launch_gui(theme_name="dark"):
+def launch_gui():
+    theme_name = get_current_theme_name()
     theme = load_theme(theme_name)
-    if not theme:
-        return
 
     root = tk.Tk()
-    root.title("Abacus Theme Viewer")
-    root.geometry("360x300")
+    root.title("Abacus")
+    root.geometry("640x480")
     root.configure(bg=theme["col_bg"])
 
-    # Labels using foregrounds
-    tk.Label(root, text="Foreground 0", fg=theme["col_f0"], bg=theme["col_bg"]).pack(pady=5)
-    tk.Label(root, text="Foreground 1", fg=theme["col_f1"], bg=theme["col_bg"]).pack(pady=5)
-    tk.Label(root, text="Foreground 2", fg=theme["col_f2"], bg=theme["col_bg"]).pack(pady=5)
+    current_panel = {"widget": None}
 
-    canvas = tk.Canvas(root, width=300, height=100, bg=theme["col_bg"], highlightthickness=0)
-    canvas.pack(pady=10)
+    def switch_panel(panel_func):
+        if current_panel["widget"] is not None:
+            current_panel["widget"].destroy()
+        new_panel = panel_func(root, theme, switch_panel)
+        new_panel.pack(fill="both", expand=True)
+        current_panel["widget"] = new_panel
 
-    # Border line
-    canvas.create_line(10, 10, 290, 10, fill=theme["col_bc"], width=2)
-    # Market Up
-    canvas.create_line(10, 40, 290, 40, fill=theme["col_mu"], width=2)
-    # Market Down
-    canvas.create_line(10, 70, 290, 70, fill=theme["col_md"], width=2)
+    switch_panel(panel_main.get_panel)
 
     root.mainloop()
